@@ -18,7 +18,7 @@ from app.core.config import settings
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,  # Vérifie que la connexion est vivante avant de l'utiliser
-    echo=True  # Affiche les requêtes SQL dans la console
+    echo=settings.DEBUG  # Affiche les requêtes SQL dans la console si DEBUG est True
 )
 
 # SessionLocal est une "fabrique" de sessions de base de données
