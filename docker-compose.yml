@@ -16,47 +16,47 @@ services:
     networks:
       - nba_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]  # ← Ajout de -d ${POSTGRES_DB}
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # API FastAPI
-  api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: nba_fantasy_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend/app:/app/app
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - nba_network
+  # API FastAPI (commenté pour l'instant - on le lancera manuellement)
+  # api:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: nba_fantasy_api
+  #   command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  #   volumes:
+  #     - ./backend/app:/app/app
+  #   ports:
+  #     - "8000:8000"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   networks:
+  #     - nba_network
 
-  # Worker pour les mises à jour automatiques
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    container_name: nba_fantasy_worker
-    command: python -m worker.main
-    volumes:
-      - ./backend/worker:/app/worker
-      - ./backend/app:/app/app
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - nba_network
+  # Worker pour les mises à jour automatiques (à développer plus tard)
+  # worker:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.worker
+  #   container_name: nba_fantasy_worker
+  #   command: python -m worker.main
+  #   volumes:
+  #     - ./backend/worker:/app/worker
+  #     - ./backend/app:/app/app
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   networks:
+  #     - nba_network
 
 volumes:
   postgres_data:

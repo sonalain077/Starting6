@@ -1,47 +1,57 @@
 """
-Point d'entrée principal de l'API FastAPI
+Point d'entrée de l'API FastAPI
+NBA Fantasy League - Starting Six
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.core.config import settings
-from app.api.v1.api import api_router
+from app.api.v1.endpoints import auth  
 
+# Créer l'application FastAPI
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    description="API pour la NBA Fantasy League 'Starting Six' 🏀",
-    version="1.0.0"
+    description="API pour gérer votre équipe de fantasy basketball NBA",
+    version="1.0.0",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Configuration CORS
+# Configuration CORS (pour permettre les requêtes depuis le frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # À modifier en production
+    allow_origins=["*"],  # En production: spécifier les domaines autorisés
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inclusion des routes API
-app.include_router(api_router, prefix=settings.API_V1_STR)
+# Inclure les routes d'authentification
+app.include_router(
+    auth.router,
+    prefix=f"{settings.API_V1_STR}/auth",
+    tags=["🔐 Authentification"]
+)
 
-
-@app.get("/")
-async def root():
+# Route de santé (health check)
+@app.get("/health", tags=["🏥 Santé"])
+def health_check():
     """
-    Endpoint racine pour vérifier que l'API fonctionne
+    Endpoint pour vérifier que l'API fonctionne
     """
     return {
-        "message": "Bienvenue sur l'API NBA Fantasy League 'Starting Six' 🏀",
+        "status": "✅ API opérationnelle",
+        "project": settings.PROJECT_NAME,
+        "database": settings.POSTGRES_DB,
+        "host": settings.POSTGRES_HOST
+    }
+
+# Route racine
+@app.get("/", tags=["🏠 Accueil"])
+def root():
+    """
+    Page d'accueil de l'API
+    """
+    return {
+        "message": "🏀 Bienvenue sur NBA Fantasy League - Starting Six!",
         "docs": "/docs",
         "version": "1.0.0"
     }
-
-
-@app.get("/health")
-async def health_check():
-    """
-    Endpoint de santé pour vérifier l'état de l'API
-    """
-    return {"status": "healthy"}
