@@ -34,8 +34,14 @@ Un leaderboard général permet de suivre le classement en temps réel.
 - **Conteneurisation :** Docker & Docker Compose  
 - **Authentification :** JWT Tokens  
 - **Tests :** Pytest  
-- **API Externe :** [balldontlie.io](https://www.balldontlie.io) pour récupérer les stats, joueurs et matchs NBA.
 
+## 📡 API Externe pour les Données NBA
+
+**Utilisation exclusive de sources gratuites :**  
+L'API [balldontlie.io](https://www.balldontlie.io) est utilisée pour récupérer la liste des joueurs NBA et leurs informations de base (nom, équipe, poste).  
+Pour les **boxscores détaillés** (statistiques complètes de chaque match), le projet utilise **[nba_api](https://github.com/swar/nba-api)**, une bibliothèque Python gratuite qui interroge directement l'API publique de stats.nba.com.  
+
+**⚠️ Contrainte importante :** Aucune API payante n'est utilisée. Le worker implémente un système de **fallback** (balldontlie → nba_api) et de **cache** pour assurer la robustesse du système.
 ---
 
 ## 🏛️ Architecture
