@@ -6,6 +6,7 @@ Chaque classe = 1 table, chaque attribut = 1 colonne.
 """
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -61,8 +62,22 @@ class Utilisateur(Base):
     )
     
     # === RELATIONS ===
-    # On définira la relation avec EquipeFantasy plus tard
-    # equipe = relationship("EquipeFantasy", back_populates="utilisateur", uselist=False)
+    
+    # Ligues créées par cet utilisateur (en tant que commissaire)
+    leagues_as_commissioner = relationship(
+        "League",
+        foreign_keys="League.commissioner_id",
+        back_populates="commissioner"
+    )
+    # Relation 1-to-many: Un utilisateur peut créer plusieurs ligues privées
+    
+    # Équipes de cet utilisateur
+    fantasy_teams = relationship(
+        "FantasyTeam",
+        back_populates="owner",
+        cascade="all, delete-orphan"
+    )
+    # Relation 1-to-many: Un utilisateur peut avoir plusieurs équipes (une par ligue)
     
     def __repr__(self):
         """
