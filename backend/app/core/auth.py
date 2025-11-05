@@ -5,13 +5,22 @@ Ce fichier gère:
 - Hashage des mots de passe avec bcrypt
 - Création de tokens JWT
 - Vérification de tokens JWT
+- Dépendance get_current_user pour protéger les endpoints
 """
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt  # ← Utiliser bcrypt directement
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import get_db
+from app.models.utilisateur import Utilisateur
+
+# Schéma OAuth2 pour extraire le token depuis le header Authorization
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
 
 # ========================================
@@ -118,3 +127,48 @@ def decode_access_token(token: str) -> Optional[str]:
         
     except JWTError:
         return None
+
+
+# ========================================
+# PARTIE 3: DÉPENDANCE FASTAPI
+# ========================================
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Utilisateur:
+    """
+    Dépendance FastAPI pour extraire l'utilisateur courant depuis le token JWT
+    
+    Usage dans un endpoint:
+        @router.get("/me")
+        def get_my_profile(current_user: Utilisateur = Depends(get_current_user)):
+            return current_user
+    
+    Args:
+        token: Le token JWT extrait du header Authorization
+        db: Session de base de données
+        
+    Returns:
+        L'utilisateur authentifié
+        
+    Raises:
+        HTTPException 401: Si le token est invalide ou l'utilisateur n'existe pas
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Impossible de valider les identifiants",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    # Décoder le token
+    username = decode_access_token(token)
+    if username is None:
+        raise credentials_exception
+    
+    # Chercher l'utilisateur en BDD
+    user = db.query(Utilisateur).filter(Utilisateur.nom_utilisateur == username).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user

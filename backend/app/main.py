@@ -5,7 +5,7 @@ NBA Fantasy League - Starting Six
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1.endpoints import auth  
+from app.api.v1.endpoints import auth, leagues, teams, players, roster, scores  
 
 # Créer l'application FastAPI
 app = FastAPI(
@@ -29,6 +29,41 @@ app.include_router(
     auth.router,
     prefix=f"{settings.API_V1_STR}/auth",
     tags=["🔐 Authentification"]
+)
+
+# Inclure les routes des ligues
+app.include_router(
+    leagues.router,
+    prefix=f"{settings.API_V1_STR}/leagues",
+    tags=["🏆 Ligues"]
+)
+
+# Inclure les routes des équipes fantasy
+app.include_router(
+    teams.router,
+    prefix=f"{settings.API_V1_STR}/teams",
+    tags=["🏀 Équipes Fantasy"]
+)
+
+# Inclure les routes des joueurs NBA
+app.include_router(
+    players.router,
+    prefix=f"{settings.API_V1_STR}/players",
+    tags=["🏀 Joueurs NBA"]
+)
+
+# Inclure les routes de gestion du roster (6 joueurs)
+app.include_router(
+    roster.router,
+    prefix=f"{settings.API_V1_STR}",
+    tags=["👥 Roster Management"]
+)
+
+# Inclure les routes des scores et leaderboards
+app.include_router(
+    scores.router,
+    prefix=f"{settings.API_V1_STR}",
+    tags=["📊 Scores & Leaderboard"]
 )
 
 # Route de santé (health check)

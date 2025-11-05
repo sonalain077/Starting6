@@ -111,6 +111,15 @@ class FantasyTeam(Base):
     # Maximum: 2 transferts par semaine
     # Reset chaque lundi à 00h00
     
+    # Indicateur si le roster initial est complet (6/6 joueurs)
+    is_roster_complete = Column(
+        Integer,  # Utiliser Integer comme boolean (0=False, 1=True) pour SQLite/PostgreSQL
+        nullable=False,
+        default=0
+    )
+    # False (0) = En phase de construction (transferts illimités)
+    # True (1) = Roster complet, équipe active (limite 2 transferts/semaine)
+    
     # === STATISTIQUES ===
     
     # Score total accumulé
