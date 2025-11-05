@@ -19,3 +19,7 @@ python-dotenv==1.0.0
 
 # API externe
 requests==2.31.0
+nba-api==1.4.1
+
+# Scheduler pour le Worker
+APScheduler==3.10.4

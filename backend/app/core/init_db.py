@@ -47,6 +47,28 @@ def init_db():
     
     print("\n✅ Toutes les tables ont été créées avec succès!")
     
+    # Créer la ligue SOLO globale unique si elle n'existe pas
+    from sqlalchemy.orm import Session
+    with Session(engine) as session:
+        # Vérifier si la ligue SOLO existe déjà
+        solo_league = session.query(League).filter(League.type == LeagueType.SOLO).first()
+        
+        if not solo_league:
+            print("\n🌍 Création de la ligue SOLO globale...")
+            solo_league = League(
+                name="NBA Fantasy League - Global",
+                type=LeagueType.SOLO,
+                commissioner_id=None,  # Pas de commissaire
+                max_teams=None,  # Illimité
+                salary_cap=60_000_000,  # 60M$ par défaut
+                is_active=True
+            )
+            session.add(solo_league)
+            session.commit()
+            print(f"   ✅ Ligue SOLO créée avec ID: {solo_league.id}")
+        else:
+            print(f"\n🌍 Ligue SOLO déjà existante (ID: {solo_league.id})")
+    
     # Vérifier que toutes les tables ont bien été créées
     from sqlalchemy import inspect
     inspector = inspect(engine)
