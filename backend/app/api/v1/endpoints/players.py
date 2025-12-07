@@ -27,7 +27,7 @@ router = APIRouter()
 @router.get("/", response_model=PlayerList)
 def get_players(
     skip: int = Query(0, ge=0, description="Nombre de résultats à sauter"),
-    limit: int = Query(20, ge=1, le=100, description="Nombre de résultats max"),
+    limit: int = Query(20, ge=1, le=1000, description="Nombre de résultats max"),
     position: Optional[Position] = Query(None, description="Filtrer par poste"),
     team: Optional[str] = Query(None, max_length=3, description="Code équipe NBA"),
     min_salary: Optional[float] = Query(None, ge=2_000_000, description="Salaire min"),
@@ -80,7 +80,7 @@ def get_players(
     # Filtre par équipe
     if team:
         team_upper = team.upper()
-        query = query.filter(Player.team == team_upper)
+        query = query.filter(Player.team_abbreviation == team_upper)
         filters_applied["team"] = team_upper
     
     # Filtre par salaire (fourchette)

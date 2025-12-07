@@ -313,6 +313,110 @@ def update_league(
     return league
 
 
+@router.get("/solo/leaderboard")
+def get_solo_leaderboard(db: Session = Depends(get_db)):
+    """
+    Obtenir le classement de la ligue SOLO
+    
+    **Endpoint :** GET /api/v1/leagues/solo/leaderboard
+    
+    **Authentification requise :** Non (public)
+    
+    **Description :**
+    Retourne le classement mondial de toutes les équipes en mode SOLO,
+    triées par score total décroissant.
+    
+    **Réponse (JSON) :**
+    ```json
+    [
+        {
+            "rank": 1,
+            "team_id": 5,
+            "team_name": "Lakers Dream Team",
+            "owner_username": "john_doe",
+            "total_score": 1250.5,
+            "last_7_days_score": 320.2,
+            "games_played": 15,
+            "average_score": 83.4,
+            "trend": "up"
+        },
+        ...
+    ]
+    ```
+    """
+    from app.models.fantasy_team import FantasyTeam
+    from app.models.fantasy_team_score import FantasyTeamScore
+    from sqlalchemy import func, desc
+    from datetime import datetime, timedelta
+    
+    # Trouver la ligue SOLO
+    solo_league = db.query(League).filter(League.type == LeagueType.SOLO).first()
+    
+    if not solo_league:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La ligue SOLO n'existe pas"
+        )
+    
+    # Récupérer toutes les équipes de la ligue SOLO avec leurs scores
+    teams_query = db.query(
+        FantasyTeam.id,
+        FantasyTeam.name,
+        Utilisateur.nom_utilisateur.label("username"),
+        func.coalesce(func.sum(FantasyTeamScore.total_score), 0).label("total_score"),
+        func.count(FantasyTeamScore.id).label("games_played")
+    ).join(
+        Utilisateur, FantasyTeam.owner_id == Utilisateur.id
+    ).outerjoin(
+        FantasyTeamScore, FantasyTeam.id == FantasyTeamScore.fantasy_team_id
+    ).filter(
+        FantasyTeam.league_id == solo_league.id
+    ).group_by(
+        FantasyTeam.id, FantasyTeam.name, Utilisateur.nom_utilisateur
+    ).order_by(
+        desc("total_score")
+    ).all()
+    
+    # Calculer les scores des 7 derniers jours
+    seven_days_ago = datetime.now().date() - timedelta(days=7)
+    
+    leaderboard = []
+    for rank, team in enumerate(teams_query, start=1):
+        # Score des 7 derniers jours
+        last_7_days = db.query(
+            func.coalesce(func.sum(FantasyTeamScore.total_score), 0)
+        ).filter(
+            FantasyTeamScore.fantasy_team_id == team.id,
+            FantasyTeamScore.score_date >= seven_days_ago
+        ).scalar() or 0.0
+        
+        # Score moyen
+        average_score = float(team.total_score) / team.games_played if team.games_played > 0 else 0.0
+        
+        # Tendance simple (à améliorer avec vraie logique)
+        trend = "stable"
+        if team.games_played >= 7:
+            # Comparer score des 7 derniers jours vs moyenne générale
+            if last_7_days / 7 > average_score * 1.1:
+                trend = "up"
+            elif last_7_days / 7 < average_score * 0.9:
+                trend = "down"
+        
+        leaderboard.append({
+            "rank": rank,
+            "team_id": team.id,
+            "team_name": team.name,
+            "owner_username": team.username,
+            "total_score": float(team.total_score),
+            "last_7_days_score": float(last_7_days),
+            "games_played": team.games_played,
+            "average_score": round(average_score, 1),
+            "trend": trend
+        })
+    
+    return leaderboard
+
+
 @router.delete("/{league_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_league(
     league_id: int,

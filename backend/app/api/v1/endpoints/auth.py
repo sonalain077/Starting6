@@ -27,24 +27,24 @@ router = APIRouter()
 
 @router.post(
     "/inscription",
-    response_model=UtilisateurResponse,
+    response_model=Token,
     status_code=status.HTTP_201_CREATED,
     summary="Créer un nouveau compte utilisateur",
-    description="Inscrit un nouvel utilisateur avec un nom d'utilisateur et un mot de passe"
+    description="Inscrit un nouvel utilisateur et retourne un token JWT"
 )
 def inscription(
     user_data: UtilisateurInscription,
     db: Session = Depends(get_db)
 ):
     """
-    Créer un nouveau compte utilisateur
+    Créer un nouveau compte utilisateur et recevoir un token JWT
     
     Args:
         user_data: Les données d'inscription (nom_utilisateur, mot_de_passe)
         db: Session de base de données (injectée automatiquement)
     
     Returns:
-        Les informations de l'utilisateur créé
+        Un token JWT pour s'authentifier immédiatement
     
     Raises:
         HTTPException 400: Si le nom d'utilisateur existe déjà
@@ -58,9 +58,8 @@ def inscription(
     
     Exemple de réponse:
         {
-            "id": 1,
-            "nom_utilisateur": "alice",
-            "date_creation": "2025-10-18T10:30:00Z"
+            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "token_type": "bearer"
         }
     """
     
@@ -89,8 +88,11 @@ def inscription(
     db.commit()
     db.refresh(new_user)  # Récupérer l'ID et date_creation générés
     
-    # 5. Retourner l'utilisateur créé (sans le mot de passe!)
-    return new_user
+    # 5. Créer un token JWT pour l'utilisateur (connexion automatique)
+    access_token = create_access_token(data={"sub": new_user.nom_utilisateur})
+    
+    # 6. Retourner le token (comme pour la connexion)
+    return Token(access_token=access_token, token_type="bearer")
 
 
 # ========================================

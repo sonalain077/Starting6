@@ -23,8 +23,8 @@ class PlayerBase(BaseModel):
     """
     first_name: str
     last_name: str
-    position: Position
-    team: str = Field(description="Code NBA de l'équipe (ex: LAL, BOS)")
+    player_position: Position = Field(alias="position", serialization_alias="player_position")
+    team_abbreviation: str = Field(alias="team", serialization_alias="team_abbreviation", description="Code NBA de l'équipe (ex: LAL, BOS)")
     fantasy_cost: float = Field(description="Salaire fantasy (2M$-18M$)")
 
 

@@ -35,8 +35,7 @@ router = APIRouter(prefix="/teams", tags=["roster"])
 
 # Constante pour le salary cap
 SALARY_CAP_MAX = 60_000_000  # 60 millions
-MAX_TRANSFERS_PER_WEEK = 2  # Maximum 2 transferts par semaine (seulement après roster complet)
-COOLDOWN_DAYS = 7
+# Mode Solo League : Transferts libres (pas de limite)
 
 
 # ========================================
@@ -173,11 +172,11 @@ def add_player_to_roster(
     2. Le joueur existe et est actif
     3. La position demandée est libre
     4. Le salary cap n'est pas dépassé (60M$ max)
-    5. Pas de cooldown actif sur ce joueur (7 jours après drop)
-    6. Moins de 2 transferts cette semaine
     
     Pour UTIL : le joueur peut être de n'importe quel poste
     Pour les autres : le joueur doit avoir le bon poste
+    
+    Mode Solo League : Transferts libres sans limitation
     """
     
     # 1. Vérifier que l'équipe existe
@@ -255,47 +254,13 @@ def add_player_to_roster(
             detail=f"Salary cap dépassé : ${new_cap/1_000_000:.1f}M > $60M. Budget restant : ${(SALARY_CAP_MAX - current_cap)/1_000_000:.1f}M"
         )
     
-    # 8. Vérifier le cooldown (joueur viré récemment)
-    cooldown_date = datetime.now() - timedelta(days=COOLDOWN_DAYS)
-    recent_drop = db.query(Transfer).filter(
-        and_(
-            Transfer.fantasy_team_id == team_id,
-            Transfer.player_id == data.player_id,
-            Transfer.transfer_type == TransferType.DROP,
-            Transfer.status == TransferStatus.COMPLETED,
-            Transfer.processed_at >= cooldown_date
-        )
-    ).first()
+    # 8. Mode Solo League : Pas de cooldown ni de limite de transferts
+    # Les validations restantes : budget et positions
     
-    if recent_drop:
-        days_left = COOLDOWN_DAYS - (datetime.now() - recent_drop.processed_at).days
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{player.full_name} a été viré récemment. Cooldown actif : {days_left} jour(s) restant(s)"
-        )
-    
-    # 9. Vérifier la limite hebdomadaire de transferts (SEULEMENT si roster déjà complet)
-    # Pendant la phase de construction initiale (roster < 6), pas de limite
-    if team.is_roster_complete:
-        today = datetime.now().date()
-        days_since_monday = today.weekday()
-        last_monday = today - timedelta(days=days_since_monday)
-        
-        transfers_this_week = db.query(Transfer).filter(
-            and_(
-                Transfer.fantasy_team_id == team_id,
-                Transfer.status == TransferStatus.COMPLETED,
-                Transfer.processed_at >= last_monday
-            )
-        ).count()
-        
-        if transfers_this_week >= MAX_TRANSFERS_PER_WEEK:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Limite de {MAX_TRANSFERS_PER_WEEK} transferts par semaine atteinte"
-            )
+    # 9. Mode Solo League : Pas de limite de transferts
     
     # 10. Vérifier si la ligue est PRIVATE et si le joueur est déjà pris
+    # Note : En MVP, on utilise seulement SOLO League, donc ce check est inactif
     league = db.query(League).filter(League.id == team.league_id).first()
     if league and league.type == LeagueType.PRIVATE:
         # Dans les ligues privées, un joueur ne peut être que dans une seule équipe
@@ -356,24 +321,10 @@ def add_player_to_roster(
     
     # Message spécial si le roster vient d'être complété
     if roster_count == 6:
-        message += f"\n🎉 Félicitations ! Votre roster est maintenant complet (6/6 joueurs). Votre équipe est active dans la ligue. La limite de {MAX_TRANSFERS_PER_WEEK} transferts par semaine s'applique désormais."
+        message += f"\n🎉 Félicitations ! Votre roster est maintenant complet (6/6 joueurs). Votre équipe est active dans la Solo League."
     
-    # Calculer les transferts restants (0 si roster pas encore complet)
-    if team.is_roster_complete:
-        today = datetime.now().date()
-        days_since_monday = today.weekday()
-        last_monday = today - timedelta(days=days_since_monday)
-        
-        transfers_count = db.query(Transfer).filter(
-            and_(
-                Transfer.fantasy_team_id == team_id,
-                Transfer.status == TransferStatus.COMPLETED,
-                Transfer.processed_at >= last_monday
-            )
-        ).count()
-        transfers_remaining = MAX_TRANSFERS_PER_WEEK - transfers_count
-    else:
-        transfers_remaining = 999  # Illimité pendant la construction
+    # Mode Solo League : Transferts illimités
+    transfers_remaining = 999
     
     # 17. Retourner la réponse
     return AddPlayerResponse(
@@ -442,24 +393,7 @@ def remove_player_from_roster(
             detail="Ce joueur n'est pas dans votre roster"
         )
     
-    # 4. Vérifier le nombre de transferts cette semaine
-    today = datetime.now().date()
-    days_since_monday = today.weekday()
-    last_monday = today - timedelta(days=days_since_monday)
-    
-    transfers_this_week = db.query(Transfer).filter(
-        and_(
-            Transfer.fantasy_team_id == team_id,
-            Transfer.status == TransferStatus.COMPLETED,
-            Transfer.processed_at >= last_monday
-        )
-    ).count()
-    
-    if transfers_this_week >= MAX_TRANSFERS_PER_WEEK:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Limite de transferts atteinte : {MAX_TRANSFERS_PER_WEEK}/semaine. Réessayez lundi prochain."
-        )
+    # 4. Mode Solo League : Pas de limite de transferts hebdomadaire
     
     # 5. Récupérer le joueur pour le message
     player = db.query(Player).filter(Player.id == player_id).first()
@@ -490,9 +424,7 @@ def remove_player_from_roster(
         "player_removed": PlayerRead.model_validate(player),
         "position_freed": roster_player.roster_slot.value,
         "salary_cap_freed": roster_player.salary_at_acquisition,
-        "salary_cap_remaining": SALARY_CAP_MAX - team.salary_cap_used,
-        "cooldown_until": datetime.now() + timedelta(days=COOLDOWN_DAYS),
-        "transfers_remaining_this_week": MAX_TRANSFERS_PER_WEEK - transfers_this_week - 1
+        "salary_cap_remaining": SALARY_CAP_MAX - team.salary_cap_used
     }
 
 
@@ -624,38 +556,19 @@ def get_available_players(
     # 10. Appliquer la pagination
     players = query.order_by(Player.fantasy_cost.desc()).offset(skip).limit(limit).all()
     
-    # 11. Vérifier les cooldowns pour chaque joueur
-    cooldown_date = datetime.now() - timedelta(days=COOLDOWN_DAYS)
-    recent_drops = db.query(Transfer).filter(
-        and_(
-            Transfer.fantasy_team_id == team_id,
-            Transfer.transfer_type == TransferType.DROP,
-            Transfer.status == TransferStatus.COMPLETED,
-            Transfer.processed_at >= cooldown_date
-        )
-    ).all()
-    
-    # Créer un dict player_id -> cooldown_end
-    cooldown_dict = {}
-    for drop in recent_drops:
-        if drop.player_id:
-            cooldown_dict[drop.player_id] = drop.processed_at + timedelta(days=COOLDOWN_DAYS)
-    
-    # 12. Construire la liste des joueurs disponibles
+    # 11. Construire la liste des joueurs disponibles (Mode Solo League - pas de cooldown)
     available_players = []
     for player in players:
         is_affordable = player.fantasy_cost <= salary_cap_remaining
-        has_cooldown = player.id in cooldown_dict
-        cooldown_ends = cooldown_dict.get(player.id, None)
         
         available_players.append(AvailablePlayerRead(
             player=PlayerRead.model_validate(player),
             is_affordable=is_affordable,
-            has_cooldown=has_cooldown,
-            cooldown_ends=cooldown_ends
+            has_cooldown=False,  # Pas de cooldown en Solo League
+            cooldown_ends=None
         ))
     
-    # 13. Retourner la réponse
+    # 12. Retourner la réponse
     return AvailablePlayersResponse(
         team_id=team_id,
         salary_cap_remaining=salary_cap_remaining,
