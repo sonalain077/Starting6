@@ -1,0 +1,151 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, mvp1 ]
+  pull_request:
+    branches: [ main, mvp1 ]
+
+jobs:
+  test-backend:
+    name: Tests Backend
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: fantasy_user
+          POSTGRES_PASSWORD: fantasy_password
+          POSTGRES_DB: nba_fantasy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://fantasy_user:fantasy_password@localhost:5432/nba_fantasy_test
+        POSTGRES_USER: fantasy_user
+        POSTGRES_PASSWORD: fantasy_password
+        POSTGRES_HOST: localhost
+        POSTGRES_DB: nba_fantasy_test
+        SECRET_KEY: test-secret-key-for-ci
+        ALGORITHM: HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      run: |
+        cd backend
+        pytest tests/ -v --tb=short --color=yes
+
+  lint-backend:
+    name: Lint Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install flake8
+      run: pip install flake8
+
+    - name: Run flake8
+      run: |
+        cd backend
+        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  test-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Cache node modules
+      uses: actions/cache@v4
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Build frontend
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+      run: |
+        cd frontend
+        npm run build
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create .env file
+      run: cp .env.example .env
+
+    - name: Test Docker Compose configuration
+      run: docker compose config
+
+    - name: Build Docker images
+      run: docker compose build --no-cache
+
+  summary:
+    name: Tests Summary
+    runs-on: ubuntu-latest
+    needs: [test-backend, lint-backend, test-frontend, docker-build]
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        echo "✅ Pipeline CI/CD complétée"
+        echo "Backend Tests: ${{ needs.test-backend.result }}"
+        echo "Backend Lint: ${{ needs.lint-backend.result }}"
+        echo "Frontend Build: ${{ needs.test-frontend.result }}"
+        echo "Docker Build: ${{ needs.docker-build.result }}"

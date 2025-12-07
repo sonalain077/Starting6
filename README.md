@@ -1,5 +1,7 @@
 # NBA Fantasy League - Starting Six
 
+![CI/CD](https://github.com/sonalain077/Starting6/workflows/CI%2FCD%20Pipeline/badge.svg?branch=mvp1)
+
 ## Informations du projet
 
 **Auteur**: Pham Dang Son Alain  
