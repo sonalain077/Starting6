@@ -6,6 +6,7 @@ Synchronise la liste complète des joueurs NBA depuis nba_api
 Ajoute les nouveaux joueurs et met à jour les joueurs existants
 """
 import logging
+import time
 from sqlalchemy.orm import Session
 from nba_api.stats.static import players as nba_players
 from nba_api.stats.endpoints import commonplayerinfo
@@ -66,9 +67,28 @@ def sync_nba_players():
             first_name = name_parts[0] if len(name_parts) > 0 else "Unknown"
             last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Unknown"
             
-            # Position par défaut (nba_api.static ne fournit pas la position)
-            # On mettra SG par défaut, sera corrigé par update_salaries ou manuellement
-            mapped_position = "SG"
+            # Tenter de récupérer l'équipe et la position via commonplayerinfo
+            # commonplayerinfo renvoie un DataFrame avec des colonnes TEAM_ABBREVIATION et POSITION
+            mapped_position = "SG"  # fallback
+            team_abbrev = "UNK"
+            try:
+                # Respecter le rate limit conseillé (≈0.6s)
+                time.sleep(0.6)
+                info = commonplayerinfo.CommonPlayerInfo(player_id=player_id)
+                info_df = info.get_data_frames()[0]
+                if not info_df.empty:
+                    raw_position = info_df.get('POSITION').values[0]
+                    raw_team = info_df.get('TEAM_ABBREVIATION').values[0]
+
+                    # Normaliser la position à nos valeurs (PG/SG/SF/PF/C)
+                    if raw_position:
+                        mapped_position = POSITION_MAP.get(raw_position, raw_position)
+
+                    if raw_team:
+                        team_abbrev = raw_team
+            except Exception:
+                # En cas d'erreur d'API, on laisse les valeurs par défaut
+                team_abbrev = "UNK"
             
             # Vérifier si le joueur existe déjà
             player = db.query(Player).filter(
@@ -92,8 +112,8 @@ def sync_nba_players():
                     first_name=first_name,
                     last_name=last_name,
                     full_name=full_name,
-                    team="UNK",  # Sera mis à jour par detect_trades
-                    team_abbreviation="UNK",
+                    team=team_abbrev,
+                    team_abbreviation=team_abbrev,
                     position=mapped_position,
                     fantasy_cost=5_000_000.0,  # Salaire par défaut de 5M$
                     is_active=api_player.get("is_active", True)

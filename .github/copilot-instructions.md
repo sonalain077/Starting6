@@ -272,3 +272,4 @@ def update_all_salaries():
 | Modes | Solo (libre) & Private (waiver, joueurs uniques) |
 | Transferts | 2 max / semaine, 7j cooldown |
 | Worker | Centralise calculs & mises à jour |
+

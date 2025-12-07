@@ -164,7 +164,7 @@ def get_team_score_detail(
                 "player": {
                     "id": player.id,
                     "full_name": player.full_name,
-                    "position": player.player_position,
+                    "position": player.position.value,
                     "team": player.team_abbreviation
                 },
                 "played": True,
@@ -186,7 +186,7 @@ def get_team_score_detail(
                 "player": {
                     "id": player.id,
                     "full_name": player.full_name,
-                    "position": player.player_position,
+                    "position": player.position.value,
                     "team": player.team_abbreviation
                 },
                 "played": False,
