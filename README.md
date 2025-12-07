@@ -5,7 +5,7 @@
 **Auteur**: Pham Dang Son Alain  
 **Formation**: DSIA 5102A - Application Fullstack Data  
 **Repository**: [Starting6](https://github.com/sonalain077/Starting6)  
-**Année**: 2024-2025
+**Année**: 2025-2026
 
 ---
 
