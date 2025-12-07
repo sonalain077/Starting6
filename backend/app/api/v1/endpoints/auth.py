@@ -89,7 +89,12 @@ def inscription(
     db.refresh(new_user)  # Récupérer l'ID et date_creation générés
     
     # 5. Créer un token JWT pour l'utilisateur (connexion automatique)
-    access_token = create_access_token(data={"sub": new_user.nom_utilisateur})
+    access_token = create_access_token(
+        data={
+            "sub": new_user.nom_utilisateur,
+            "admin": new_user.is_admin
+        }
+    )
     
     # 6. Retourner le token (comme pour la connexion)
     return Token(access_token=access_token, token_type="bearer")
@@ -163,7 +168,10 @@ def connexion(
     
     # 4. Créer le token JWT
     access_token = create_access_token(
-        data={"sub": user.nom_utilisateur}
+        data={
+            "sub": user.nom_utilisateur,
+            "admin": user.is_admin
+        }
     )
     
     # 5. Retourner le token

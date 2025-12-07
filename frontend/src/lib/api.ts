@@ -21,8 +21,9 @@ import type {
 // CONFIGURATION
 // ============================================================================
 
-// URL du backend (change selon l'environnement)
+// URL du backend (utilise la variable d'environnement ou fallback)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const API_VERSION = '/api/v1';
 const BASE_URL = `${API_BASE_URL}${API_VERSION}`;
 
@@ -220,13 +221,13 @@ export async function getMyTeam(): Promise<FantasyTeam[]> {
 
 /**
  * Créer une nouvelle équipe
- * POST /teams
+ * POST /teams/
  */
 export async function createTeam(data: {
   name: string;
   league_id: number;
 }): Promise<FantasyTeam> {
-  return fetchAPI<FantasyTeam>('/teams', {
+  return fetchAPI<FantasyTeam>('/teams/', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -396,10 +397,39 @@ export async function getLeagueLeaderboard(
 }
 
 // ============================================================================
-// 🔄 EXPORT DEFAULT
+// ADMIN - Gestion des utilisateurs
 // ============================================================================
 
-const api = {
+/**
+ * Récupère la liste de tous les utilisateurs (admin uniquement)
+ */
+export async function getAllUsers(): Promise<User[]> {
+  return fetchAPI<User[]>('/utilisateurs/admin/all');
+}
+
+/**
+ * Promouvoir un utilisateur en administrateur
+ */
+export async function promoteUserToAdmin(userId: number): Promise<User> {
+  return fetchAPI<User>(`/utilisateurs/admin/${userId}/promote`, {
+    method: 'PATCH',
+  });
+}
+
+/**
+ * Rétrograder un administrateur en utilisateur normal
+ */
+export async function demoteAdminToUser(userId: number): Promise<User> {
+  return fetchAPI<User>(`/utilisateurs/admin/${userId}/demote`, {
+    method: 'PATCH',
+  });
+}
+
+// ============================================================================
+// EXPORT ALL - Optionnel pour import * as api
+// ============================================================================
+
+export const api = {
   // Auth
   login,
   register,
@@ -414,7 +444,10 @@ const api = {
   // Team
   getMyTeam,
   createTeam,
+
+  // Roster
   getMyRoster,
+  getAvailablePlayers,
   addPlayerToRoster,
   replacePlayer,
   removePlayerFromRoster,
@@ -428,6 +461,11 @@ const api = {
   getLeague,
   getSoloLeaderboard,
   getLeagueLeaderboard,
+  
+  // Admin
+  getAllUsers,
+  promoteUserToAdmin,
+  demoteAdminToUser,
 };
 
 export default api;

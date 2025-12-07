@@ -8,20 +8,10 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
-  const router = useRouter();
-
-  // Si déjà connecté, redirige vers le dashboard
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
@@ -65,17 +55,27 @@ export default function Home() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-          <Button asChild size="lg" className="text-lg">
-            <Link href="/register">
-              Créer mon équipe
-            </Link>
-          </Button>
+          {!isAuthenticated ? (
+            <>
+              <Button asChild size="lg" className="text-lg">
+                <Link href="/register">
+                  Créer mon équipe
+                </Link>
+              </Button>
 
-          <Button asChild size="lg" variant="outline" className="text-lg">
-            <Link href="/login">
-              Se connecter
-            </Link>
-          </Button>
+              <Button asChild size="lg" variant="outline" className="text-lg">
+                <Link href="/login">
+                  Se connecter
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <Button asChild size="lg" className="text-lg">
+              <Link href="/dashboard">
+                Accéder au Dashboard
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>

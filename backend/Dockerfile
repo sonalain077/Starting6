@@ -9,17 +9,20 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copier les fichiers de dépendances
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements.txt ./
 
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # Copier le code de l'application
 COPY . .
 
+# Copier et rendre exécutable le script de démarrage
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Exposer le port
 EXPOSE 8000
 
-# Commande par défaut (sera surchargée dans docker-compose)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Utiliser le script de démarrage personnalisé
+CMD ["/app/start.sh"]

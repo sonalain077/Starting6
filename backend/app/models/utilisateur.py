@@ -4,7 +4,7 @@ Modèle SQLAlchemy pour la table Utilisateur
 Ce fichier définit la structure de la table `utilisateurs` dans PostgreSQL.
 Chaque classe = 1 table, chaque attribut = 1 colonne.
 """
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -59,6 +59,14 @@ class Utilisateur(Base):
         DateTime(timezone=True),  # Type: date et heure avec timezone
         server_default=func.now(), # PostgreSQL met la date actuelle automatiquement
         nullable=False
+    )
+    
+    # Statut administrateur - Par défaut False
+    is_admin = Column(
+        Boolean,               # Type: booléen (True/False)
+        default=False,         # Par défaut, les utilisateurs ne sont pas admin
+        nullable=False,        # Obligatoire
+        server_default='false' # Valeur par défaut côté PostgreSQL
     )
     
     # === RELATIONS ===

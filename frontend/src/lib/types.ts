@@ -23,6 +23,7 @@ export interface User {
   id: number;
   nom_utilisateur: string;
   date_creation: string;
+  is_admin?: boolean; // Optionnel pour rétrocompatibilité
 }
 
 // ============================================================================

@@ -5,7 +5,7 @@ NBA Fantasy League - Starting Six
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1.endpoints import auth, leagues, teams, players, roster, scores  
+from app.api.v1.endpoints import auth, leagues, teams, players, roster, scores, utilisateurs  
 
 # Créer l'application FastAPI
 app = FastAPI(
@@ -29,6 +29,13 @@ app.include_router(
     auth.router,
     prefix=f"{settings.API_V1_STR}/auth",
     tags=["🔐 Authentification"]
+)
+
+# Inclure les routes des utilisateurs
+app.include_router(
+    utilisateurs.router,
+    prefix=f"{settings.API_V1_STR}/utilisateurs",
+    tags=["👤 Utilisateurs"]
 )
 
 # Inclure les routes des ligues

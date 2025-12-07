@@ -16,15 +16,40 @@ from app.models.player import Player
 
 logger = logging.getLogger(__name__)
 
-# Mapping pour les positions (balldontlie retourne pas toujours les bonnes positions)
+# Mapping pour les positions NBA vers nos positions standardisées
 POSITION_MAP = {
+    # Positions simples
+    "Guard": "SG",
+    "Forward": "SF",
+    "Center": "C",
+    "Forward-Guard": "SF",
+    "Guard-Forward": "SG",
+    "Forward-Center": "PF",
+    "Center-Forward": "C",
+    
+    # Positions détaillées
+    "Point Guard": "PG",
+    "Shooting Guard": "SG",
+    "Small Forward": "SF",
+    "Power Forward": "PF",
+    
+    # Abréviations
+    "PG": "PG",
+    "SG": "SG",
+    "SF": "SF",
+    "PF": "PF",
+    "C": "C",
     "G": "SG",
     "F": "SF",
-    "C": "C",
     "G-F": "SG",
-    "F-C": "PF",
     "F-G": "SF",
+    "F-C": "PF",
+    "C-F": "C",
 }
+
+# Distribution cible pour assurer une couverture de tous les postes
+# Si l'API ne retourne pas de position, on assigne de manière équilibrée
+FALLBACK_POSITIONS = ["PG", "SG", "SF", "PF", "C"]
 
 def sync_nba_players():
     """
@@ -68,27 +93,43 @@ def sync_nba_players():
             last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Unknown"
             
             # Tenter de récupérer l'équipe et la position via commonplayerinfo
-            # commonplayerinfo renvoie un DataFrame avec des colonnes TEAM_ABBREVIATION et POSITION
-            mapped_position = "SG"  # fallback
-            team_abbrev = "UNK"
+            mapped_position = None
+            team_abbrev = "FA"  # Free Agent par défaut
+            
             try:
-                # Respecter le rate limit conseillé (≈0.6s)
+                # Respecter le rate limit de l'API NBA (0.6s entre chaque requête)
                 time.sleep(0.6)
                 info = commonplayerinfo.CommonPlayerInfo(player_id=player_id)
                 info_df = info.get_data_frames()[0]
+                
                 if not info_df.empty:
-                    raw_position = info_df.get('POSITION').values[0]
-                    raw_team = info_df.get('TEAM_ABBREVIATION').values[0]
+                    # L'API NBA retourne POSITION dans la première DataFrame
+                    raw_position = str(info_df['POSITION'].values[0]) if 'POSITION' in info_df else None
+                    raw_team = str(info_df['TEAM_ABBREVIATION'].values[0]) if 'TEAM_ABBREVIATION' in info_df else None
 
-                    # Normaliser la position à nos valeurs (PG/SG/SF/PF/C)
-                    if raw_position:
-                        mapped_position = POSITION_MAP.get(raw_position, raw_position)
+                    # Mapper la position vers nos valeurs standardisées
+                    if raw_position and raw_position != 'nan' and raw_position != 'None':
+                        mapped_position = POSITION_MAP.get(raw_position, None)
+                        if not mapped_position:
+                            # Si pas de mapping exact, essayer de deviner
+                            if 'Guard' in raw_position:
+                                mapped_position = "PG" if 'Point' in raw_position else "SG"
+                            elif 'Forward' in raw_position:
+                                mapped_position = "PF" if 'Power' in raw_position else "SF"
+                            elif 'Center' in raw_position:
+                                mapped_position = "C"
 
-                    if raw_team:
+                    if raw_team and raw_team != 'nan' and raw_team != 'None':
                         team_abbrev = raw_team
-            except Exception:
-                # En cas d'erreur d'API, on laisse les valeurs par défaut
-                team_abbrev = "UNK"
+                        
+            except Exception as e:
+                # En cas d'erreur d'API, continuer avec les valeurs par défaut
+                logger.debug(f"Erreur API pour {full_name}: {e}")
+            
+            # Si toujours pas de position, assigner de manière équilibrée
+            if not mapped_position:
+                # Utiliser le modulo pour une distribution équilibrée
+                mapped_position = FALLBACK_POSITIONS[new_players % 5]
             
             # Vérifier si le joueur existe déjà
             player = db.query(Player).filter(
@@ -96,17 +137,22 @@ def sync_nba_players():
             ).first()
             
             if player:
-                # Mettre à jour le joueur existant (nom uniquement, pas l'équipe ici)
+                # Mettre à jour le joueur existant avec toutes les infos
                 player.first_name = first_name
                 player.last_name = last_name
                 player.full_name = full_name
+                player.team = team_abbrev
+                player.team_abbreviation = team_abbrev
+                player.position = mapped_position
                 player.is_active = api_player.get("is_active", True)
+                # Ne pas modifier fantasy_cost ici (sera calculé par calculate_salaries)
                 updated_players += 1
                 
                 if updated_players % 100 == 0:
                     logger.info(f"   {updated_players} joueurs mis à jour...")
             else:
-                # Créer un nouveau joueur
+                # Créer un nouveau joueur avec salaire initial basique
+                # Le salaire réel sera calculé plus tard par calculate_salaries.py
                 new_player = Player(
                     external_api_id=player_id,
                     first_name=first_name,
@@ -115,7 +161,9 @@ def sync_nba_players():
                     team=team_abbrev,
                     team_abbreviation=team_abbrev,
                     position=mapped_position,
-                    fantasy_cost=5_000_000.0,  # Salaire par défaut de 5M$
+                    fantasy_cost=5_000_000,  # Salaire de départ (sera calculé après)
+                    avg_fantasy_score_last_15=0.0,
+                    games_played_last_20=0,
                     is_active=api_player.get("is_active", True)
                 )
                 db.add(new_player)

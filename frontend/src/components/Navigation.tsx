@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { Home, Trophy, Users, User, LogOut } from "lucide-react";
+import { Home, Trophy, Users, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navigation() {
@@ -15,6 +15,11 @@ export function Navigation() {
     { href: "/team", label: "Mon Équipe", icon: Users },
     { href: "/leaderboard", label: "Classement", icon: Trophy },
   ];
+  
+  // Ajouter le lien admin si l'utilisateur est admin
+  if (user?.is_admin) {
+    navItems.push({ href: "/admin", label: "Administration", icon: Shield });
+  }
 
   const isActive = (href: string) => pathname === href;
 
@@ -65,7 +70,9 @@ export function Navigation() {
           <div className="flex items-center gap-3">
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold">{user.nom_utilisateur}</p>
-              <p className="text-xs text-gray-500">Membre</p>
+              <p className="text-xs text-gray-500">
+                {user.is_admin ? "👑 Administrateur" : "Membre"}
+              </p>
             </div>
             <Button
               variant="outline"
