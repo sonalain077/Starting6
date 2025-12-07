@@ -108,6 +108,7 @@ Le projet utilise 4 conteneurs :
 - Middleware d'authentification pour sécuriser les endpoints
 - Système d'administration (promotion/rétrogradation d'utilisateurs)
 - Gestion des sessions côté client avec Context API
+Compte administrateur : id : admin, mdp : admin123
 
 ### Système de fantasy league
 
