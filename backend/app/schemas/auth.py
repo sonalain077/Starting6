@@ -128,6 +128,11 @@ class UtilisateurResponse(BaseModel):
         description="Date de création du compte"
     )
     
+    is_admin: bool = Field(
+        default=False,
+        description="Indique si l'utilisateur est administrateur"
+    )
+    
     class Config:
         # Permet de convertir automatiquement depuis un modèle SQLAlchemy
         from_attributes = True

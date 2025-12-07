@@ -21,42 +21,67 @@ services:
       timeout: 5s
       retries: 5
 
-  # API FastAPI (commenté pour l'instant - on le lancera manuellement)
-  # api:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: nba_fantasy_api
-  #   command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-  #   volumes:
-  #     - ./backend/app:/app/app
-  #   ports:
-  #     - "8000:8000"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   networks:
-  #     - nba_network
+  # API FastAPI
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nba_fantasy_api
+    volumes:
+      - ./backend:/app
+      - ./quick_fix_players.py:/app/quick_fix.py
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nba_network
+    restart: unless-stopped
 
-  # Worker pour les mises à jour automatiques (à développer plus tard)
-  # worker:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.worker
-  #   container_name: nba_fantasy_worker
-  #   command: python -m worker.main
-  #   volumes:
-  #     - ./backend/worker:/app/worker
-  #     - ./backend/app:/app/app
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   networks:
-  #     - nba_network
+  # Worker pour calculs automatiques quotidiens (8h ET)
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nba_fantasy_worker
+    command: python -m app.worker.scheduler
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nba_fantasy_frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    networks:
+      - nba_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

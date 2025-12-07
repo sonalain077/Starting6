@@ -72,15 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        // Pour l'instant, on crée un user temporaire depuis le token
-        // Plus tard, quand l'endpoint /utilisateurs/moi sera implémenté :
-        // const currentUser = await api.getCurrentUser();
+        // Décoder le token JWT pour extraire les infos user
+        const payload = JSON.parse(atob(token.split('.')[1]));
         
-        // Temporaire : on crée un user minimal
+        // Le payload contient : { sub: username, admin: boolean, exp: timestamp }
         setUser({
-          id: 0,
-          nom_utilisateur: 'user',
+          id: 0, // On peut ajouter l'ID dans le token plus tard
+          nom_utilisateur: payload.sub,
           date_creation: new Date().toISOString(),
+          is_admin: payload.admin || false, // Utiliser le champ admin du token
         });
       } catch (error) {
         console.error('Token invalide ou expiré:', error);
@@ -115,12 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Stocke le token dans localStorage
       api.setToken(response.access_token);
       
-      // Pour l'instant, on crée un objet user temporaire
-      // Plus tard, on pourra appeler getCurrentUser() si l'endpoint est implémenté
+      // Décoder le token pour extraire les infos
+      const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+      
       setUser({
         id: 0, // Temporaire
-        nom_utilisateur: nom_utilisateur,
+        nom_utilisateur: payload.sub,
         date_creation: new Date().toISOString(),
+        is_admin: payload.admin || false,
       });
     } catch (error) {
       // Remonte l'erreur au composant qui appelle login()
@@ -146,11 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       api.setToken(response.access_token);
       
-      // Crée un objet user temporaire
+      // Décoder le token pour extraire les infos
+      const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+      
       setUser({
         id: 0, // Temporaire
-        nom_utilisateur: nom_utilisateur,
+        nom_utilisateur: payload.sub,
         date_creation: new Date().toISOString(),
+        is_admin: payload.admin || false,
       });
     } catch (error) {
       throw error;
